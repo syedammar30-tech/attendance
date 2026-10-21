@@ -119,12 +119,12 @@ async function hrRead(ev){const f=ev.target.files[0];if(!f)return;const box=$("#
    Object.keys(g).map(Number).sort((a,b)=>b-a).forEach(y=>lines.push(g[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(" ")))}
   const T=s=>{const m=s.match(/(\d{1,2}):(\d{2}):\d{2}\s*([AP])M/);return m?pad((+m[1])%12+(m[3]==="P"?12:0))+":"+m[2]:""},by={};
   lines.forEach(l=>{const m=l.match(/^\s*(\d+)\s+(.+?)\s+(\d{1,2})\/(\d{1,2})\/(\d{4})\s+[A-Za-z]+day\s*(.*)$/);if(!m)return;
-   const d=iso(+m[5],+m[3],+m[4]),r=m[6],tm=[...r.matchAll(/\d{1,2}:\d{2}:\d{2}\s*[AP]M/g)].map(x=>x[0]),k=m[1]+"|"+m[2],o=by[k]=by[k]||{id:m[1],nm:m[2],att:{},lv:[]};
-   if(tm.length)o.att[d]=[T(tm[0]),tm.length>1?T(tm[1]):"",(r.match(/Approved by.*$/i)||[""])[0]];
-   else{const t=(r.match(/\b(Sick|Casual|Annual)\b/i)||[])[1];if(/Absent/i.test(r)&&t)o.lv.push({t:t.toLowerCase()==="sick"?"Medical":t[0].toUpperCase()+t.slice(1).toLowerCase(),d})}});
+   const d=iso(+m[5],+m[3],+m[4]),r=m[6],tm=[...r.matchAll(/\d{1,2}:\d{2}:\d{2}\s*[AP]M/g)].map(x=>x[0]),k=m[1]+"|"+m[2],o=by[k]=by[k]||{id:m[1],nm:m[2],att:{},lv:[],un:[]};
+   if(tm.length){let out=tm.length>1?T(tm[1]):"",rm=(r.match(/Approved by.*$/i)||[""])[0];if(/Half Day/i.test(r)){rm="Half Day";if(tm.length===2){const w=tm[1].match(/(\d+):(\d+)/),a=T(tm[0]).split(":"),t=+a[0]*60+ +a[1]+ +w[1]*60+ +w[2];out=pad(Math.floor(t/60))+":"+pad(t%60)}}o.att[d]=[T(tm[0]),out,rm]}
+   else{const t=(r.match(/\b(Sick|Casual|Annual)\b/i)||[])[1];if(/Absent/i.test(r)&&!t)o.un.push(d);if(/Absent/i.test(r)&&t)o.lv.push({t:t.toLowerCase()==="sick"?"Medical":t[0].toUpperCase()+t.slice(1).toLowerCase(),d})}});
   const nz=s=>s.toLowerCase().replace(/[^a-z]/g,"");
   HRD=Object.values(by).map(o=>{let i=HR.findIndex(h=>h&&h===o.id);if(i<0)i=EMP.findIndex(x=>nz(x)===nz(o.nm));return Object.assign(o,{i})});
-  box.innerHTML=HRD.length?`<div class="tw"><table><tr><th>HR employee</th><th>Matched with</th><th>Present days</th><th>Leave days</th></tr>${HRD.map(o=>`<tr><td>${esc(o.id+" "+o.nm)}</td><td>${o.i>=0?esc(EMP[o.i]):'<span class="t Late">Not matched - add HR ID in People</span>'}</td><td>${Object.keys(o.att).length}</td><td>${o.lv.length}</td></tr>`).join("")}</table></div><p><button class="go" id="hs">Save to attendance</button></p>`:"No attendance rows found in this PDF.";
+  box.innerHTML=HRD.length?`<div class="tw"><table><tr><th>HR employee</th><th>Matched with</th><th>Present days</th><th>Leave days</th></tr>${HRD.map(o=>`<tr><td>${esc(o.id+" "+o.nm)}</td><td>${o.i>=0?esc(EMP[o.i]):'<span class="t Late">Not matched - add HR ID in People</span>'}</td><td>${Object.keys(o.att).length}</td><td>${o.lv.length}${o.un.length?` (+${o.un.length} absent days without leave type, skipped)`:""}</td></tr>`).join("")}</table></div><p><button class="go" id="hs">Save to attendance</button></p>`:"No attendance rows found in this PDF.";
   if(HRD.length)$("#hs").onclick=hrSave}catch(x){box.textContent="Could not read file: "+(x.message||x)}}
 async function hrSave(){let n=0;try{for(const o of HRD){if(o.i<0)continue;const mo={};for(const d in o.att)(mo[d.slice(0,7)]=mo[d.slice(0,7)]||{})[d.slice(8)]=o.att[d];
   for(const k in mo){const ref=doc(fs,"users",EM[o.i],"att",k),sn=await getDoc(ref);await setDoc(ref,{days:Object.assign({},(sn.exists()&&sn.data().days)||{},mo[k])});n+=Object.keys(mo[k]).length}
