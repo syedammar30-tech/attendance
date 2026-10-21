@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance &amp; Leave Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--tx:#1b2433;--mu:#6b7686;--navy:#1f3864;--bd:#dde3ec;--in:#fff8dc;--hd:#1f3864;--ht:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151f;--card:#1a2230;--tx:#e8edf5;--mu:#97a3b6;--navy:#8fb0ea;--bd:#2c3648;--in:#2b2a18;--hd:#25365a}}
+:root[data-theme="dark"]{--bg:#10151f;--card:#1a2230;--tx:#e8edf5;--mu:#97a3b6;--navy:#8fb0ea;--bd:#2c3648;--in:#2b2a18;--hd:#25365a}
+*{box-sizing:border-box}[hidden]{display:none!important}.lg{max-width:340px;margin:60px auto;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}.lg input{width:100%}#lerr{color:#c00000;min-height:16px}html,body{margin:0}body{background:var(--bg);color:var(--tx);font:14px Arial,Helvetica,sans-serif}
+header{background:var(--hd);color:var(--ht);padding:14px 18px}header h1{margin:0;font-size:19px}
+nav{display:flex;gap:6px;padding:10px 18px 0;flex-wrap:wrap}nav button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}nav button.on{background:var(--hd);color:var(--ht)}
+main{padding:12px 18px 30px;max-width:1100px;margin:auto}#msg{color:var(--mu);min-height:22px;margin:4px 0;position:sticky;top:0;z-index:9;background:var(--bg);padding:4px 0;font-weight:bold}
+section{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:14px}h3{margin:0 0 10px;font-size:14px;color:var(--navy)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.bar label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}
+select,input,button.go{font:inherit;padding:7px 9px;border:1px solid var(--bd);border-radius:7px;background:var(--in);color:var(--tx)}button.go{background:var(--hd);color:var(--ht);cursor:pointer;border:0}button.sm{font:inherit;font-size:12px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:6px;padding:3px 8px;cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--navy);border-radius:10px;padding:10px 12px}.card small{display:block;color:var(--mu);font-size:11px;letter-spacing:.5px;text-transform:uppercase}.card b{font-size:22px;color:var(--navy)}
+.card.risk.High{background:#fde2e2}.card.risk.High b{color:#c00000}.card.risk.Moderate{background:#fff1cc}.card.risk.Moderate b{color:#9c6500}.card.risk.Low{background:#dff3e4}.card.risk.Low b{color:#1e7b34}.card.risk b{font-size:17px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.cv{height:240px;position:relative}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:560px}th{background:var(--hd);color:var(--ht);padding:7px;font-size:12px}td{padding:6px 7px;border-bottom:1px solid var(--bd);text-align:center}td:first-child,th:first-child{text-align:left}
+tr.off td{background:rgba(128,128,128,.12);color:var(--mu)}tr.lv td{background:rgba(74,127,209,.14)}
+.t{padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold;white-space:nowrap}.Timely{background:#dff3e4;color:#1e7b34}.Grace,.Under,.Moderate{background:#fff1cc;color:#9c6500}.Late,.Early,.High,.Missing,.Neg{background:#fde2e2;color:#c00000}.Low,.Met{background:#dff3e4;color:#1e7b34}.Leave{background:#dce9f8;color:#1f4e8c}
+.pb{height:6px;background:var(--bd);border-radius:3px;margin-top:3px}.pb i{display:block;height:6px;background:var(--navy);border-radius:3px}
+</style></head><body>
+<header><h1>Attendance &amp; Leave Tracker</h1></header>
+<div class="lg" id="login"><b>Login</b><input id="lem" type="email" placeholder="Email" autocomplete="username"><input id="lpw" type="password" placeholder="Password" autocomplete="current-password"><button class="go" id="li">Login</button><div id="lerr"></div></div>
+<div id="app" hidden><nav><button data-t="dash">Dashboard</button><button data-t="entry">Time Entry</button><button data-t="leave">Leaves</button><button data-t="people" id="pp">People</button><span id="who" style="margin-left:auto;color:var(--mu);align-self:center"></span><button id="lo">Logout</button></nav>
+<main><div id="msg"></div><div id="v"></div></main></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";import{getFirestore,collection,doc,getDoc,setDoc,addDoc,deleteDoc,onSnapshot}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const app=initializeApp({apiKey:"AIzaSyDwRLfzvB8gjLgqtmM1vAmgKm0I8TYszlU",authDomain:"attendance-tracker-5b57d.firebaseapp.com",projectId:"attendance-tracker-5b57d",storageBucket:"attendance-tracker-5b57d.firebasestorage.app",messagingSenderId:"931974368684",appId:"1:931974368684:web:f8d8da2cef213e2726be09"}),auth=getAuth(app),fs=getFirestore(app);
+let EMP=[],EM=[],isAdmin=false,subs=[],unP=null;const YEAR=2026,ADMIN="syedammar30@gmail.com";
+const HOL={"2026-02-05":"Kashmir Day","2026-03-20":"Eid 1st Day","2026-03-23":"23rd March","2026-05-01":"Labour Day","2026-05-27":"Eid 1st Day","2026-05-28":"Eid 2nd Day","2026-05-29":"Eid 3rd Day","2026-06-25":"9th Muharram","2026-06-26":"10th Muharram","2026-08-14":"14th August","2026-08-26":"12th Rabi-ul-Awal"};
+const QUOTA={Annual:14,Casual:10,Medical:8},MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,"0"),iso=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dow=s=>new Date(s+"T00:00:00Z").getUTCDay(),dim=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+const mins=t=>{if(!t)return null;const a=t.split(":");return +a[0]*60+ +a[1]};
+const _n=new Date(),TODAY=iso(_n.getFullYear(),_n.getMonth()+1,_n.getDate());
+let db=null,att={},lv=[],ch={},tab="dash",fe=0,fm=_n.getFullYear()===YEAR?_n.getMonth()+1:1;
+const rec=(e,s)=>{const d=att[e+"_"+s.slice(0,7)];return d&&d.days&&d.days[s.slice(8)]};
+const leaveOn=(e,s)=>{const x=lv.find(l=>l.e===e&&l.f<=s&&l.to>=s);return x?x.t:null};
+function info(e,s){const r=rec(e,s),d=dow(s);
+ if(r&&r[0]){const i=mins(r[0]),o=mins(r[1]),ram=s>="2026-02-19"&&s<="2026-03-19";
+  const arr=i<=570?"Timely":i<=585?"Grace":"Late";let hrs;
+  if(o!=null){const w=o-i;hrs=w>=(ram?390:540)?"Met":w<=(ram?360:450)?"Early Off":"Under"}else hrs=s<TODAY?"Missing Out":"In Office";
+  return{typ:"P",arr,hrs,w:o!=null?o-i:null,r}}
+ if(d===0||d===6)return{typ:"off",arr:"Weekly Off",hrs:""};
+ if(HOL[s])return{typ:"off",arr:"Holiday",hrs:""};
+ const l=leaveOn(e,s);if(l)return{typ:"lv",arr:"Leave",hrs:"",lt:l};
+ return{typ:"none",arr:s<TODAY?"Not Recorded":"",hrs:""}}
+function stats(e,y,m){const o={Timely:0,Grace:0,Late:0,Leave:0,"Weekly Off":0,Holiday:0,"Not Recorded":0,Met:0,Under:0,"Early Off":0,"Missing Out":0};
+ for(let d=1;d<=dim(y,m);d++){const x=info(e,iso(y,m,d));if(x.arr&&o[x.arr]!==undefined)o[x.arr]++;if(x.typ==="P"&&o[x.hrs]!==undefined)o[x.hrs]++}
+ o.P=o.Timely+o.Grace+o.Late;const h=o.Met+o.Under+o["Early Off"];
+ o.pun=o.P?(o.Timely+o.Grace)/o.P:null;o.comp=h?o.Met/h:null;o.late=o.P?o.Late/o.P:null;
+ o.score=o.pun==null?null:o.comp==null?o.pun:.6*o.pun+.4*o.comp;
+ o.risk=o.score==null?"No Data":o.score<.5?"High Risk":o.score>.75?"Low Risk":"Moderate Risk";return o}
+function ldays(l){if(l.h)return .5;let n=0;const a=new Date(l.f+"T00:00:00Z"),b=new Date(l.to+"T00:00:00Z");
+ for(const d=a;d<=b;d.setUTCDate(d.getUTCDate()+1)){const w=d.getUTCDay();if(w&&w<6&&!HOL[d.toISOString().slice(0,10)])n++}return n}
+const used=(e,t)=>lv.filter(l=>l.e===e&&l.t===t).reduce((a,l)=>a+ldays(l),0);
+const P=v=>v==null?"n/a":(v*100).toFixed(1)+"%";
+const hm=m=>m==null?"":Math.floor(m/60)+":"+pad(m%60);
+const tag=(k)=>k?`<span class="t ${k.split(" ")[0]==="Not"||k==="Weekly Off"||k==="Holiday"||k==="In Office"?"":k.split(" ")[0]}">${esc(k)}</span>`:"";
+const opts=(a,v,f)=>a.map((x,i)=>`<option value="${f?f(x,i):i}"${(f?f(x,i):i)==v?" selected":""}>${esc(x)}</option>`).join("");
+const msg=(t,ok)=>{const m=$("#msg");m.textContent=t;m.style.color=ok?"#1e7b34":"#c00000";if(t&&ok)setTimeout(()=>{m.textContent===t&&(m.textContent="")},4000)};
+const errTxt=x=>x&&x.code==="permission-denied"?"You do not have permission to do this.":"Could not save ("+((x&&(x.code||x.message))||"unknown error")+")";
+
+function setTab(t){tab=t;document.querySelectorAll("nav button[data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="people")return peopleTab();
+ const fl=`<label>Employee<select id="fe">${opts(EMP,fe)}</select></label><label>Month<select id="fm">${opts(MON,fm,(x,i)=>i+1)}</select></label>`;
+ if(t==="dash")$("#v").innerHTML=`<div class="bar">${fl}</div><div id="d"></div>`;
+ if(t==="entry")$("#v").innerHTML=`<section><h3>Add or update a day</h3><div class="bar"><label>Employee<select id="ee">${opts(EMP,fe)}</select></label><label>Date<input type="date" id="ed" value="${TODAY}"></label><label>Time In<input type="time" id="ei"></label><label>Time Out<input type="time" id="eo"></label><label>Remarks<input id="er" placeholder="optional"></label><button class="go" id="es">Save</button></div></section><div class="bar">${fl.replace(/id="fe"/,'id="fe"')}</div><div id="d"></div>`;
+ if(t==="leave")$("#v").innerHTML=`<section><h3>Apply for leave</h3><div class="bar"><label>Employee<select id="le">${opts(EMP,fe)}</select></label><label>Type<select id="lt"><option>Annual</option><option>Casual</option><option>Medical</option></select></label><label>From<input type="date" id="lf" value="${TODAY}"></label><label>To<input type="date" id="lto" value="${TODAY}"></label><label style="flex-direction:row;align-items:center;gap:5px"><input type="checkbox" id="lh">Half day</label><button class="go" id="ls">Add leave</button></div></section><div id="d"></div>`;
+ const a=$("#fe"),b=$("#fm");if(a)a.onchange=()=>{fe=+a.value;if($("#ee"))$("#ee").value=fe;renderD()};if(b)b.onchange=()=>{fm=+b.value;renderD()};
+ if(t==="entry"){$("#ee").onchange=e=>{fe=+e.target.value;a.value=fe;renderD()};$("#es").onclick=saveAtt}
+ if(t==="leave")$("#ls").onclick=addLeave;if(!isAdmin){if(a)a.parentElement.style.display="none";const f=$("#v section");if(f&&f.querySelector("#es,#ls"))f.remove()}renderD()}
+function renderD(){Object.values(ch).forEach(c=>c.destroy());ch={};
+ if(tab==="dash")dash();if(tab==="entry")entry();if(tab==="leave")leaves()}
+function balTable(){return `<div class="tw"><table><tr><th>Employee</th><th>Annual Used</th><th>Annual Left</th><th>Casual Used</th><th>Casual Left</th><th>Medical Used</th><th>Medical Left</th></tr>
+ <tr class="off"><td>Yearly quota</td><td></td><td>${QUOTA.Annual}</td><td></td><td>${QUOTA.Casual}</td><td></td><td>${QUOTA.Medical}</td></tr>
+ ${EMP.map((n,e)=>"<tr><td><b>"+esc(n)+"</b></td>"+["Annual","Casual","Medical"].map(t=>{const u=used(e,t),l=QUOTA[t]-u;return `<td>${u}</td><td>${l<0?`<span class="t Neg">${l}</span>`:l}</td>`}).join("")+"</tr>").join("")}</table></div>`}
+function dash(){const e=fe,m=fm,s=stats(e,YEAR,m);
+ const c=(l,v,x)=>`<div class="card ${x||""}"><small>${l}</small><b>${v}</b></div>`;
+ $("#d").innerHTML=`<div class="cards">${c("Punctuality",P(s.pun))}${c("Working Compliance",P(s.comp))}${c("Late Ratio",P(s.late))}${c("Leave Days",s.Leave)}${c("Master Score",P(s.score))}${c("Attendance Risk",s.risk,"risk "+s.risk.split(" ")[0])}</div>
+ <div class="grid2"><section><h3>Attendance Status</h3><div class="cv"><canvas id="c1"></canvas></div></section><section><h3>Working Hours</h3><div class="cv"><canvas id="c2"></canvas></div></section></div>
+ <section><h3>Team Comparison - ${MON[m-1]}</h3><div class="tw"><table><tr><th>Employee</th><th>Present</th><th>Late</th><th>Leave</th><th>Punctuality</th><th>Working Compl.</th><th>Master Score</th><th>Risk</th></tr>
+ ${EMP.map((n,i)=>{const t=stats(i,YEAR,m);return `<tr><td><b>${esc(n)}</b></td><td>${t.P}</td><td>${t.Late}</td><td>${t.Leave}</td><td>${P(t.pun)}</td><td>${P(t.comp)}</td><td>${P(t.score)}<div class="pb"><i style="width:${Math.round((t.score||0)*100)}%"></i></div></td><td>${tag(t.risk)}</td></tr>`}).join("")}</table></div></section>
+ <section><h3>Leave Balance ${YEAR}</h3>${balTable()}</section>`;
+ if(!window.Chart)return;Chart.defaults.color=getComputedStyle(document.documentElement).getPropertyValue("--mu");
+ const L=["Timely","Grace","Late","Leave","Weekly Off","Holiday","Not Recorded"];
+ ch.a=new Chart($("#c1"),{type:"doughnut",data:{labels:L.map(k=>k+" - "+s[k]),datasets:[{data:L.map(k=>s[k]),backgroundColor:["#2e9e5b","#f2b134","#d64545","#4a7fd1","#a6a6a6","#8e6bbf","#d9d9d9"],borderWidth:0}]},options:{maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right"}}}});
+ ch.b=new Chart($("#c2"),{type:"bar",data:{labels:["Met","Under","Early Off","Missing Out"],datasets:[{data:[s.Met,s.Under,s["Early Off"],s["Missing Out"]],backgroundColor:["#2e9e5b","#f2b134","#d64545","#a6a6a6"]}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}})}
+function entry(){const e=fe,m=fm,rows=[];
+ for(let d=1;d<=dim(YEAR,m);d++){const s=iso(YEAR,m,d),x=info(e,s),r=x.r||[],cls=x.typ==="off"?"off":x.typ==="lv"?"lv":"";
+  rows.push(`<tr class="${cls}"><td>${s.slice(8)}-${MON[m-1].slice(0,3)} ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dow(s)]}</td><td>${esc(r[0]||"")}</td><td>${esc(r[1]||"")}</td><td>${hm(x.w)}</td><td>${x.typ==="P"?tag(x.arr):esc(x.typ==="lv"?x.lt+" Leave":x.arr)}</td><td>${tag(x.hrs)}</td><td style="text-align:left">${esc(r[2]||HOL[s]||"")}</td><td>${x.typ==="P"&&isAdmin?`<button class="sm" data-a="e" data-s="${s}">Edit</button> <button class="sm" data-a="x" data-s="${s}">Clear</button>`:""}</td></tr>`)}
+ $("#d").innerHTML=`<section><h3>${esc(EMP[e])} - ${MON[m-1]}</h3><div class="tw"><table><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Arrival</th><th>Hours Status</th><th>Remarks</th><th></th></tr>${rows.join("")}</table></div></section>`;
+ $("#d").onclick=async ev=>{const b=ev.target.closest("button");if(!b)return;const s=b.dataset.s,r=rec(e,s)||[];
+  if(b.dataset.a==="e"){$("#ed").value=s;$("#ei").value=r[0]||"";$("#eo").value=r[1]||"";$("#er").value=r[2]||"";$("#ei").focus()}
+  else if(confirm("Clear this day?"))await write(e,s,null)}}
+async function write(e,s,v){try{const ref=doc(fs,"users",EM[e],"att",s.slice(0,7)),sn=await getDoc(ref),days=Object.assign({},(sn.exists()&&sn.data().days)||{});if(v)days[s.slice(8)]=v;else delete days[s.slice(8)];await setDoc(ref,{days});msg("Saved.",1);return true}catch(x){msg(errTxt(x))}}
+async function saveAtt(){const e=+$("#ee").value,s=$("#ed").value,i=$("#ei").value,o=$("#eo").value;
+ if(!s||s.slice(0,4)!==String(YEAR))return msg("Pick a date in "+YEAR+".");if(!i)return msg("Time In is required.");
+ if(o&&mins(o)<=mins(i))return msg("Time Out must be after Time In.");
+ if(await write(e,s,[i,o,$("#er").value.trim()])){fe=e;fm=+s.slice(5,7);setTab("entry");$("#ed").value=s}}
+async function addLeave(){const e=+$("#le").value,t=$("#lt").value,f=$("#lf").value,to=$("#lto").value,h=$("#lh").checked;
+ if(!f||!to||to<f)return msg("Check the From and To dates.");try{await addDoc(collection(fs,"users",EM[e],"lv"),{t,f,to,h});msg("Leave added.",1)}catch(x){msg(errTxt(x))}}
+function leaves(){const rows=lv.slice().sort((a,b)=>b.f.localeCompare(a.f)).map(l=>`<tr><td><b>${esc(EMP[l.e])}</b></td><td>${esc(l.t)}</td><td>${esc(l.f)}</td><td>${esc(l.to)}</td><td>${ldays(l)}${l.h?" (half)":""}</td><td>${isAdmin?`<button class="sm" data-id="${esc(l.id)}" data-e="${l.e}">Delete</button>`:""}</td></tr>`).join("");
+ $("#d").innerHTML=`<section><h3>Leave Balance ${YEAR}</h3>${balTable()}</section><section><h3>Leave Log</h3><div class="tw"><table><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th></th></tr>${rows||'<tr><td colspan="6">No leaves yet.</td></tr>'}</table></div></section>`;
+ $("#d").onclick=async ev=>{const b=ev.target.closest("button");if(b&&confirm("Delete this leave?"))try{await deleteDoc(doc(fs,"users",EM[+b.dataset.e],"lv",b.dataset.id))}catch(x){msg("Could not delete.")}}}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
+setTab("dash");
+function track(list){subs.forEach(f=>f());subs=[];att={};lv=[];EMP=list.map(p=>p.name);EM=list.map(p=>p.email);fe=0;setTab(tab);
+ list.forEach((p,i)=>{subs.push(onSnapshot(collection(fs,"users",p.email,"att"),sn=>{sn.docs.forEach(d=>att[i+"_"+d.id]=d.data());renderD()},()=>msg("Could not load data.")));
+  subs.push(onSnapshot(collection(fs,"users",p.email,"lv"),sn=>{lv=lv.filter(l=>l.e!==i).concat(sn.docs.map(d=>Object.assign({},d.data(),{id:d.id,e:i})));renderD()},()=>msg("Could not load leaves.")))})}
+function peopleTab(){Object.values(ch).forEach(c=>c.destroy());ch={};
+ $("#v").innerHTML=`<section><h3>Add employee</h3><p style="color:var(--mu)">First create the login in Firebase (Authentication > Users > Add user), then add the same email and name here.</p><div class="bar"><label>Name<input id="pn"></label><label>Email<input id="pe" type="email"></label><button class="go" id="pa">Add</button></div></section>
+ <section><h3>Employees</h3><div class="tw"><table><tr><th>Name</th><th>Email</th></tr>${EMP.map((n,i)=>`<tr><td>${esc(n)}</td><td style="text-align:left">${esc(EM[i])}</td></tr>`).join("")}</table></div></section>
+ <section><h3>Import old data (seed.json)</h3><div class="bar"><label>Employee<select id="si">${opts(EMP,0)}</select></label><button class="go" id="sb">Import</button></div></section>`;
+ $("#pa").onclick=async()=>{const n=$("#pn").value.trim(),m=$("#pe").value.trim().toLowerCase();if(!n||!m)return msg("Enter name and email.");try{await setDoc(doc(fs,"users",m),{name:n});msg("Employee added.",1)}catch(x){msg(errTxt(x))}};
+ $("#sb").onclick=async()=>{const i=+$("#si").value;if(!EM[i]||!confirm("Import old data for "+EMP[i]+"?"))return;try{const d=await (await fetch("seed.json")).json();
+  for(const k in d.att)await setDoc(doc(fs,"users",EM[i],"att",k),d.att[k]);for(const l of d.lv)await addDoc(collection(fs,"users",EM[i],"lv"),l);msg("Imported.",1)}catch(x){msg("Import failed: "+(x.message||x.code))}}}
+$("#li").onclick=async()=>{$("#lerr").textContent="";try{await signInWithEmailAndPassword(auth,$("#lem").value.trim(),$("#lpw").value)}catch(x){$("#lerr").textContent="Wrong email or password."}};
+$("#lpw").onkeydown=e=>{if(e.key==="Enter")$("#li").click()};$("#lo").onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{if(unP){unP();unP=null}subs.forEach(f=>f());subs=[];
+ if(!u){$("#app").hidden=true;$("#login").hidden=false;return}
+ $("#login").hidden=true;$("#app").hidden=false;const em=u.email.toLowerCase();isAdmin=em===ADMIN;$("#who").textContent=em;$("#pp").hidden=!isAdmin;tab="dash";
+ try{if(isAdmin)unP=onSnapshot(collection(fs,"users"),sn=>track(sn.docs.map(d=>({email:d.id,name:d.data().name||d.id})).sort((a,b)=>a.name.localeCompare(b.name))),x=>msg(errTxt(x)));
+  else{const sn=await getDoc(doc(fs,"users",em));track([{email:em,name:sn.exists()&&sn.data().name||em}])}}catch(x){msg(errTxt(x))}});
+</script></body></html>
